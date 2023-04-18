@@ -20,6 +20,7 @@ public class DefenceTower : Build
 
     protected override void Update()
     {
+        base.Update();
         if (buildActive == false || m_CooldownComplete == false) return;
 
         if (C_AttackCor == null)
@@ -50,9 +51,7 @@ public class DefenceTower : Build
         var obj = Instantiate(missilePrefab, transform.position, Quaternion.identity);
         if (obj == null) return;
         var pc = obj.GetComponent<ProjectileController>();
-        pc.Attacker = transform;
-        pc.target = target;
-        pc.AttackPoint = 10f;
+        pc.SetInfo(target, transform, 10f, 10f);
     }
     
     protected override void UseSkill()

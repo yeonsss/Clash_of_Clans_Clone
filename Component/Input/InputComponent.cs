@@ -6,9 +6,10 @@ public class InputComponent : IComponent
 {
     protected Vector3 _mousePosOffset;
     protected float mZcoord;
-    
+
     public void OnEventExecute(object sender, EventArgs arg)
     {
+        //TODO: 배튼 씬이면 동작 안되게 한다.
         var evt = arg as CustomInputEvent;
 
         if (evt != null)
@@ -26,13 +27,6 @@ public class InputComponent : IComponent
                     break;
             }    
         }
-    }
-    
-    protected Vector3 GetMouseWorldPosition()
-    {
-        Vector3 mousePos = Input.mousePosition;
-        mousePos.z = mZcoord;
-        return Camera.main.ScreenToWorldPoint(mousePos);
     }
 
     protected virtual void MouseDown(GameObject obj) { }

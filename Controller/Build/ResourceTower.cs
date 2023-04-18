@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using static Define;
 public class ResourceTower : Build
@@ -7,28 +8,74 @@ public class ResourceTower : Build
     private int m_MaxResource = 100;
     private int m_ResourceStep = 0;
     
-    protected ResourceType m_RType;
-    
-    public bool m_GetResourcePossible = false;
-    private Coroutine C_ResourceGain = null;
+    protected ResourceType m_RType = ResourceType.Gold;
+    private bool _isResourceFull = false;
+        
+    public bool GetResourceFull
+    {
+        get
+        {
+            return _isResourceFull;
+        }
+        set
+        {
+            if (value == true)
+            {
+                _isResourceFull = true;
+                alertMessage.SetActive(true);
+            }
+            else
+            {
+                _isResourceFull = false;
+                alertMessage.SetActive(false);
+            }
+        }
+    }
 
-    // 주석 - 자원 수집시간 제거 (자원수집 시간동안 기다린 후 클릭하면 자원 흭득)
-    
+    private Coroutine C_ResourceGain = null;
+    private GameObject alertMessage; 
+
     protected override void Awake()
     {
-        // m_ResourceStep = (int)Mathf.Round(m_MaxResource / m_CompleteTime);
         base.Awake();
+        SocketManager.instance.AddEventHandler(SocketEvent.GET_BUILD_STORAGE, CreditStorageFull);
+        InitAlertMessage();
+    }
+
+    private void InitAlertMessage()
+    {
+        if (alertMessage != null) return;
+        alertMessage = ResourceManager.instance.Instantiate("WorldSpaceUI/ResourceAlert", gameObject.transform);
+        
+        alertMessage.BindEvent(GetResource);
+        alertMessage.SetActive(false);
     }
     
-    protected override void Update()
+    private IEnumerator CreditStorageFull(IResponse response)
     {
-        // base.Update();        
-        // if (buildActive && m_CooldownComplete && C_ResourceGain == null && m_GetResourcePossible == false)
-        // {
-        //     Debug.Log("Start cor");
-        //     C_ResourceGain = StartCoroutine(StorageResource());    
-        // }
+        if (response is not ResponseGetBuildStorageDto dto) yield break;
+
+        if (dto.buildId == buildId)
+        {
+            InitAlertMessage();
+            GetResourceFull = true;
+        }
     }
+
+    private async void GetResource()
+    {
+        var resourceTowers = FindObjectsOfType<ResourceTower>();
+        foreach (var rb in resourceTowers)
+        {
+            rb.GetResourceFull = false;
+        }
+
+        var response = await NetworkManager.instance.Get<ResponseGetResourceDTO>("/build/resource");
+        if (response.state == true)
+        {
+            GameManager.instance.GainResource(m_RType, response.amount);
+        }
+    } 
     
     protected override void UseSkill()
     {

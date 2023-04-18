@@ -8,9 +8,9 @@ using UnityEngine.UI;
 using static Define;
 public class C_SceneManager : Singleton<C_SceneManager>
 {
-    private string m_currentScene;
+    public string m_currentScene;
     private Slider LoadingGuage;
-    
+
     private List<string> SceneList = new List<string>();
 
     public void Init()

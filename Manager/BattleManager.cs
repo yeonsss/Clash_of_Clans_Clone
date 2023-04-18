@@ -1,58 +1,280 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.Events;
+using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
+using UnityEngine.Serialization;
 using Random = System.Random;
 using static Define;
 
 public class BattleManager : Singleton<BattleManager>
 {
-    public bool rountStart = false;
-    public int MonsterCount { get; set; } = 0;
+    public bool isBattleStart;
+    public string spawnType;
+    public string spawnName;
+    public string targetId;
+
+    public Dictionary<string, int> selectMonsterMap;
+    public Dictionary<string, int> selectMagicMap;
+    private List<GameObject> monsterList;
+
     public bool[,] boardForPath = new bool[50, 50];
-    public Dictionary<int, GameObject> walls;
-    public Dictionary<int, GameObject> builds;
+    public GameObject[,] wallMap = new GameObject[50, 50];
+    public GameObject mainHall;
+
+    public UnityEvent<string> battleDoneEvent;
+    public UnityEvent<ResponseGetRivalDTO> rivalChangeEvent;
+    public UnityEvent<ResponseGetArmyDTO> setMyArmyEvent;
+
+    private bool _battleDone = false;
 
     public void Init()
     {
-        walls = new Dictionary<int, GameObject>();
-        builds = new Dictionary<int, GameObject>();
+        battleDoneEvent = new UnityEvent<string>();
+        rivalChangeEvent = new UnityEvent<ResponseGetRivalDTO>();
+        setMyArmyEvent = new UnityEvent<ResponseGetArmyDTO>();
+        monsterList = new List<GameObject>();
     }
 
-    public GameObject CheckWallInPos(float x, float y)
+    // 매니저에서 관리중인 배틀 관련 데이터 초기화
+    public void BattleStateInit()
     {
-        var wallList = walls.Select(kvp => kvp.Value).ToList();;
-        if (wallList.Count == 0) return null;
+        isBattleStart = false;
+        targetId = "";
+        mainHall = null;
+        _battleDone = false;
+        monsterList.Clear();
+    }
 
-        foreach (var wall in wallList)
+    public void SetHpGaugeActive()
+    {
+        
+    }
+    
+    public async void ChangeRival()
+    {
+        var rival = await NetworkManager.instance.Get<ResponseGetRivalDTO>($"/rival/{targetId}");
+        rivalChangeEvent.Invoke(rival);
+        
+        targetId = rival.rivalInfo.userId;
+        var buildList = rival.rivalInfo.buildList;
+        var enemyBuild = GameObject.Find("enemyBuild");
+        if (GameObject.Find("enemyBuild") == null)
         {
-            var pos = wall.transform.position;
-            if (pos.x == x && pos.z == y)
-            {
-                return wall;
-            }
+            enemyBuild = new GameObject();
+            enemyBuild.name = "enemyBuild";    
         }
 
-        return null;
-    }
-
-    public void DeleteBuildInArray(int instanceId)
-    {
-        if (builds.ContainsKey(instanceId) == true)
+        for (int i = 0; i < enemyBuild.transform.childCount; i++)
         {
-            builds.Remove(instanceId);
+            Destroy(enemyBuild.transform.GetChild(i).gameObject);
+        }
+
+        foreach (var bi in buildList)
+        {
+            var b = SpawnManager.instance.SpawnRivalBuild(bi);
+            b.transform.parent = enemyBuild.transform;
+            if (bi.name == "Hall") mainHall = b;
         }
     }
     
-    public void DeleteWallInArray(int instanceId)
+    public void DeletaBuildInBoard(GameObject build)
     {
-        if (walls.ContainsKey(instanceId) == true)
+        var centerPos = build.transform.position;
+        Wtor(centerPos.x, centerPos.z, (int)WIDTH, out var rx, out var ry);
+
+        var buildInfo = build.GetComponent<Build>();
+        var width = buildInfo.XSize;
+        var height = buildInfo.YSize;
+        
+        var minX = (int)Mathf.Ceil(rx - (width / 2));
+        var maxX = (int)Mathf.Floor(rx + (width / 2));
+        var minY = (int)Mathf.Ceil(ry - (height / 2));
+        var maxY = (int)Mathf.Floor(ry + (height / 2));
+
+        for (int i = minY; i <= maxY; i++)
         {
-            var wallPos = walls[instanceId].transform.position;
-            Wtor(wallPos.x, wallPos.z, (int)WIDTH, out var rx, out var ry);
-            boardForPath[ry, rx] = false;
-            walls.Remove(instanceId);
+            for (int j = minX; j <= maxX; j++)
+            {
+                boardForPath[i, j] = false;
+                wallMap[i, j] = null;
+            }
+        }
+    }
+    
+    public int GetDestroyCost(GameObject origin, int x, int y)
+    {
+        if (wallMap[y, x] == null) return 0;
+        
+        var buildInfo = wallMap[y, x].GetComponent<Build>();
+        var monsterInfo = origin.GetComponent<MonsterController>();
+        
+        var eliminateTime = (buildInfo.Hp / monsterInfo.AttackPoint) * monsterInfo.AttackCooldown * 3;
+        return (int)eliminateTime;
+    }
+
+    public async void EnterBattlePage()
+    {
+        BattleStateInit();
+        var army = await NetworkManager.instance.Get<ResponseGetArmyDTO>("/army");
+        
+        UpdateMyData(army.armyInfo.selectMonsterMap, army.armyInfo.selectMagicMap);
+        setMyArmyEvent.Invoke(army);
+        ClearSpawnState();
+        
+        ChangeRival();
+    }
+
+    public void UpdateMyData(Dictionary<string, int> selectMonster, Dictionary<string, int> selectMagic)
+    {
+        selectMonsterMap = selectMonster;
+        selectMagicMap = selectMagic;
+    }
+
+    public void SetSpawnState(string type, string objName)
+    {
+        spawnType = type;
+        spawnName = objName;
+    }
+    
+    public void ClearSpawnState()
+    {
+        spawnType = "";
+        spawnName = "";
+    }
+    
+    public IEnumerator BattleDone(string message, bool win)
+    {
+        battleDoneEvent.Invoke(message);
+        var dto = new RequestBattleDoneDTO()
+        {
+            win = win,
+            rivalId = targetId,
+            selectMagicMap = selectMagicMap,
+            selectMonsterMap = selectMonsterMap,
+        };
+        
+        yield return NetworkManager.instance.Post<RequestBattleDoneDTO, ResponseBattleDoneDTO>("/battle/done", dto);
+        yield return new WaitForSeconds(2);
+        
+        SpawnManager.instance.SetAciveMyBuild(true);
+        C_SceneManager.instance.SwitchScene("HomeGround");
+    }
+    
+    IEnumerator BattleStart()
+    {
+        SetRivalBuildInfo();
+        var dto = new RequestBattleStartDTO() { targetId = targetId };
+        yield return NetworkManager.instance.Post<RequestBattleStartDTO, ResponseBattleStartDTO>("/battle/start",
+            dto); 
+    }
+    
+    public void SetRivalBuildInfo()
+    {
+        var buildList = GameObject.FindGameObjectsWithTag("Building");
+
+        foreach (var build in buildList)
+        {
+            var position = build.transform.position;
+            var x = position.x;
+            var y = position.z;
+
+            Wtor(x, y, (int)WIDTH, out var rx, out var ry);
+
+            if (build.GetComponent<Build>().type == BuildName.Wall)
+            {
+                wallMap[ry, rx] = build;
+            }
+            else
+            {
+                boardForPath[ry, rx] = true;    
+            }
+        }
+    }
+    
+    public List<GameObject> GetBuildListExcludeType(BuildName type)
+    {
+        var result = new List<GameObject>(); 
+        var buildList = GameObject.FindGameObjectsWithTag("Building");
+
+        foreach (var build in buildList)
+        {
+            if (build.GetComponent<Build>().type != type)
+            {
+                result.Add(build);
+            }
+        }
+
+        return result;
+    }
+
+    public List<GameObject> GetNearBuild(float posX, float posY)
+    {
+        var bList = GetBuildListExcludeType(BuildName.Wall);
+        if (bList.Count < 1) return null;
+
+        Dictionary<GameObject, float> buildDict = new Dictionary<GameObject, float>();
+        foreach (var build in bList)
+        {
+            if (build == null) continue;
+            var buildPos = build.transform.position;
+            var culcX = Mathf.Abs(posX - buildPos.x);
+            var culcY = Mathf.Abs(posY - buildPos.z);
+
+            var maxD = culcX + culcY;
+            buildDict.Add(build, maxD);
+        }
+        
+        var items = from pair in buildDict
+            orderby pair.Value
+            select pair;
+        
+        var sortList = items.ToList();
+        var resultList = new List<GameObject>();
+
+        if (sortList.Count > 0)
+        {
+            var top3List = sortList.GetRange(0, Mathf.Clamp(sortList.Count, 1, 3));
+            foreach (var item in top3List)
+            {
+                resultList.Add(item.Key);
+            }
+        }
+
+        return resultList;
+    }
+
+    // EventHandler for InputManager
+    public void TouchSpawnEventHandler(float x, float y)
+    {
+        if(spawnType == "" || spawnName == "") return;
+        
+        if (spawnType == "Monster")
+        {
+            if (isBattleStart == false)
+            {
+                isBattleStart = true;
+                StartCoroutine(BattleStart());
+            }
+
+            if (selectMonsterMap[spawnName] < 1) return;
+            var type = Enum.Parse<MonsterName>(spawnName);
+            var obj = SpawnManager.instance.SpawnMonster(type, x, y, spawnName);
+            if (obj != null) monsterList.Add(obj);
+            selectMonsterMap[spawnName] -= 1;
+            
+        }
+        else
+        {
+            if (isBattleStart == false)
+            {
+                isBattleStart = true;
+                StartCoroutine(BattleStart());
+            }
         }
     }
     
@@ -62,171 +284,63 @@ public class BattleManager : Singleton<BattleManager>
         if (y < 0 || y >= HEIGHT) return false;
         return boardForPath[y, x];
     }
-    
-    public bool CheckMovePossible(int nextX, int nextY)
+
+    public bool CheckMovePossible(int nextX, int nextY, int destX, int destY)
     {
+        if (nextX == destX && nextY == destY)
+        {
+            return true;
+        }
+        
         var canGo = GetArea(nextX, nextY);
         if (canGo == false) return true;
         return false;
     }
-
-    public void BattleStart()
-    {
-        if (rountStart == true) return;
-        rountStart = true;
-        FieldSetting();
-        GenMonster();
-        UIManager.instance.UIActiveSetting(UI.GAMEUI, false);
-        UIManager.instance.UIActiveSetting(UI.DECKUI, false);
-        UIManager.instance.UIActiveSetting(UI.HANDUI, false);
-    }
-
-    public void BattleEnd()
-    {
-        rountStart = false;
-        CulcResource();
-        UIManager.instance.UIActiveSetting(UI.GAMEUI, true);
-    }
-
+    
     private void Update()
     {
-        if (rountStart == true && CheckGameEnd() == true)
+        if (SceneManager.GetActiveScene().name != "BattleScene") return;
+        if (mainHall == null) return;
+
+        if (mainHall.activeSelf == false)
         {
-            BattleEnd();
-        }
-    }
-
-
-    public void CulcPath()
-    {
-    }
-
-    public bool CheckGameEnd()
-    {
-        if (MonsterCount < 1)
-        {
-            Debug.Log("GameEnd");
-            return true;
-        }
-        return false;
-    }
-
-    public void FieldSetting()
-    {
-        
-        var buildList = GameObject.FindGameObjectsWithTag("Building");
-
-        foreach (var build in buildList)
-        {
-            if (build.GetComponent<Build>().bType == BuildType.Wall)
+            // 게임 종료
+            if (_battleDone == false)
             {
-                var position = build.transform.position;
-                var x = position.x;
-                var y = position.z;
-
-                Wtor(x, y, (int)WIDTH, out var rx, out var ry);
-
-                boardForPath[ry, rx] = true;
-                walls.Add(build.GetComponent<Build>().instanceId, build);
+                _battleDone = true;
+                StartCoroutine(BattleDone(" You Win ", true));
             }
-            else
+        }
+
+        if (mainHall.activeSelf)
+        {
+            int spawnPossible = 0;
+            foreach (var m in selectMonsterMap)
             {
-                Debug.Log(build.GetComponent<Build>().instanceId.ToString());
-                builds.Add(build.GetComponent<Build>().instanceId, build);
+                spawnPossible += m.Value;
             }
-        } 
-        
-    }
 
-    public List<Tuple<float, GameObject>> NeerBuildingList(float posX, float posY)
-    {
-        var buildList = builds.Select(kvp => kvp.Value).ToList();;
-        List<Tuple<float, GameObject>> canMoveAreaList = new List<Tuple<float, GameObject>>();
-        foreach (var build in buildList)
-        {
-            if (build == null) continue;
-            var buildPos = build.transform.position;
-            var culcX = Mathf.Abs(posX - buildPos.x);
-            var culcY = Mathf.Abs(posY - buildPos.z);
-
-            var maxD = culcX + culcY;
-            canMoveAreaList.Add(new Tuple<float, GameObject>(maxD, build));
-        }
-        canMoveAreaList.Sort((elem, elem2) => elem.Item1.CompareTo(elem2.Item1));
-        
-        return canMoveAreaList;
-    }
-
-    public void GenMonster()
-    {
-        string key = $"{GameManager.instance.currentChapter}-{GameManager.instance.currentRound}";
-        var data = DataManager.instance.ChapterDict[key];
-        Random random = new Random();
-        List<Transform> spawnPos = new List<Transform>();
-        int typeCount = data.ChapterObjects.Length;
-        int totalSpawnCount = 0;
-        int[] spawnList = new int[typeCount];
-        
-        foreach (var board in GameManager.m_Board)
-        {
-            if (board.GetComponent<Area>().type == Define.AreaType.Empty)
+            if (spawnPossible == 0)
             {
-                spawnPos.Add(board.transform);
-            }            
-        }
-
-        for (int i = 0; i < typeCount; i++)
-        {
-            spawnList[i] = data.ChapterObjects[i].Count;
-            totalSpawnCount += data.ChapterObjects[i].Count;
-        }
-
-        for (int j = 0; j < totalSpawnCount; j++)
-        {
-            int choicePos = random.Next(0, spawnPos.Count);
-            int choiceType = random.Next(0, typeCount);
-            if (spawnList[choiceType] == 0)
-            {
-                for (int k = 0; k < typeCount; k++)
+                int activeMonsterCount = 0; 
+                foreach (var monster in monsterList)
                 {
-                    if (spawnList[k] != 0)
+                    if (monster.activeSelf)
                     {
-                        spawnList[k] -= 1;
-                        SpawnMonster(data.ChapterObjects[k].SerialCode, spawnPos[choicePos].position.x,
-                            spawnPos[choicePos].position.z, $"{j}");
-                        break;    
+                        activeMonsterCount += 1;
+                        break;
+                    }
+                }
+
+                if (activeMonsterCount == 0)
+                {
+                    if (_battleDone == false)
+                    {
+                        _battleDone = true;
+                        StartCoroutine(BattleDone(" You Lose ", false));
                     }
                 }
             }
-            else
-            {
-                spawnList[choiceType] -= 1;
-                SpawnMonster(data.ChapterObjects[choiceType].SerialCode, spawnPos[choicePos].position.x,
-                    spawnPos[choicePos].position.z, $"{j}");
-            }
         }
-    }
-
-    public void SpawnMonster(int code, float x, float y, string name)
-    {
-        if (DataManager.instance.monsterDict.TryGetValue(code, out var data) == false) return;
-
-        var monsterPrefab = Resources.Load(data.Levels[0].PrefabPath);
-        if (monsterPrefab == null) return;
-        var obj = Instantiate(monsterPrefab) as GameObject;
-        if (obj != null)
-        {
-            obj.tag = "Enemy";
-            obj.name = name;
-            obj.transform.position = new Vector3(x, 0, y);
-            obj.GetComponent<MonsterController>().serialCode = code;
-            MonsterCount++;
-        }
-    }
-
-    public void CulcResource()
-    {
-        // 자원 건물 계산해서 골드 획득
-        var building = GameObject.FindGameObjectsWithTag("Building");
     }
 }

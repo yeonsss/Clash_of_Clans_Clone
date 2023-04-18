@@ -1,30 +1,41 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 using static Define;
 
 public class ProjectileController : MonoBehaviour
 {
-    public Transform target;
-    public Transform Attacker;
-    public float AttackPoint = 100f;
-    public float speed = 9.0f;
+    private Transform _target;
+    private Transform _attacker;
+    private float _attackPoint = 100f;
+    private float _speed = 9.0f;
 
     private void Update()
     {
         Move();
     }
     
+    public void SetInfo(Transform target, Transform attacker, float attackPoint, float speed)
+    {
+        this._target = target;
+        this._attacker = attacker;
+        _attackPoint = attackPoint;
+        _speed = speed;
+    }
+    
     private void Move()
     {
-        if (target == null) Destroy(gameObject);
+        if (_target == null) Destroy(gameObject);
         try
         {
-            transform.LookAt(target);
+            transform.LookAt(_target);
             transform.position = Vector3.MoveTowards(
-                transform.position, target.position, speed * Time.deltaTime);
+                transform.position, _target.position, _speed * Time.deltaTime);
 
             if (transform.position.x < X_MIN || transform.position.x > X_MAX) Destroy(gameObject);
             if (transform.position.z < Y_MIN || transform.position.z > Y_MAX) Destroy(gameObject);
+
+            OnCollisionByDistance(_target.gameObject);
         }
         catch
         {
@@ -32,13 +43,35 @@ public class ProjectileController : MonoBehaviour
         }
     }
 
-    private void OnParticleCollision(GameObject other)
+    private void OnCollisionByDistance(GameObject target)
     {
-        Debug.Log(other.transform.name);
-        if (other.CompareTag("Enemy"))
+        if (target == null) return;
+        var offset = gameObject.transform.position - target.transform.position;
+        var distanceSqr = offset.sqrMagnitude;
+        
+        if (distanceSqr < 0.3)
         {
-            other.gameObject.GetComponent<MonsterController>().Attacked(AttackPoint);
+            if (target.CompareTag("Building"))
+                target.GetComponent<Build>().Attacked(_attackPoint);
+            else
+                target.GetComponent<MonsterController>().Attacked(_attackPoint);
+            
             Destroy(gameObject);
         }
+        
     }
+
+    // private void OnParticleCollision(GameObject other)
+    // {
+    //     if (other == null || other.activeSelf == false)
+    //     {
+    //         Destroy(gameObject);
+    //     }
+    //     
+    //     if (other.CompareTag("Enemy"))
+    //     {
+    //         other.gameObject.GetComponent<MonsterController>().Attacked(AttackPoint);
+    //         Destroy(gameObject);
+    //     }
+    // }
 }

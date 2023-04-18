@@ -1,0 +1,9 @@
+
+public class ResponseGetTaskComplete : IResponse
+{
+    public bool state { get; set; }
+    public string message { get; set; }
+    public string taskId { get; set; }
+    public string name { get; set; }
+    public string type { get; set; }
+}

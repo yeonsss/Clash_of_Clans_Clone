@@ -7,7 +7,9 @@ public class UIManager : Singleton<UIManager>
 {
     private Dictionary<UI, GameObject> UiDict = new Dictionary<UI, GameObject>();
     public event EventHandler txtEvent;
-    
+
+    public bool isUiActive = false;
+
     public void Init()
     {
         foreach (var uiName in Enum.GetNames(typeof(UI)))
@@ -18,9 +20,7 @@ public class UIManager : Singleton<UIManager>
             var ui = GameObject.FindWithTag(uiName);
             if (ui == null)
             {
-                var uiPrefab = Resources.Load($"Prefabs/UI/{uiName}");
-                if (uiPrefab == null) continue;
-                ui = Instantiate(uiPrefab) as GameObject;
+                ui = ResourceManager.instance.InstantiateDontDistroy($"UI/{uiName}");
                 if (ui != null) ui.SetActive(false);
             }
             
@@ -32,13 +32,29 @@ public class UIManager : Singleton<UIManager>
     public GameObject GetUIObject(UI ui)
     {
         UiDict.TryGetValue(ui, out var obj);
-        if (obj == null) return null;
-        return obj;
+        return obj == null ? null : obj;
     }
 
     public void UIActiveSetting(UI uiType, bool active)
     {
-        UiDict[uiType].SetActive(active);
+        try
+        {
+            UiDict[uiType].SetActive(active);
+        }
+        catch (Exception e)
+        {
+            Debug.Log(e.StackTrace);
+        }
+        
+    }
+
+    public void TransformUI(UI uiType)
+    {
+        foreach (var uiT in UiDict.Keys)
+        {
+            if (uiT == uiType) UiDict[uiT].SetActive(true);
+            else UiDict[uiT].SetActive(false);
+        }
     }
     
 }

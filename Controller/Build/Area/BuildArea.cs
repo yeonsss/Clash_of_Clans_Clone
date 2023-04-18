@@ -34,7 +34,7 @@ public class BuildArea : MonoBehaviour
         var myPos = transform.position;
         Wtor(myPos.x, myPos.z, (int)WIDTH, out var rx, out var ry);
 
-        var ar = GameManager.GetArea(rx, ry);
+        var ar = SpawnManager.GetArea(rx, ry);
         if (ar == null) return;
         
         if (ar.type == AreaType.Building)

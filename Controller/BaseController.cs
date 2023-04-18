@@ -5,9 +5,13 @@ using static Define;
 
 public class BaseController : MonoBehaviour
 {
+    public float Hp { get; set; }
+    public float MaxHp { get; set; }
+    
     protected event EventHandler m_EvtListener;
-
     protected List<IComponent> m_ComponentList;
+    protected HpBarController HpBar;
+    
     
     protected virtual void SetComponent()
     {
@@ -27,26 +31,45 @@ public class BaseController : MonoBehaviour
         m_ComponentList = new List<IComponent>();
         SetComponent();
         SetEvent();
+        SetHpBar();
     }
 
-    protected virtual void Update() { }
+    private void SetHpBar()
+    {
+        var obj = ResourceManager.instance.Instantiate("WorldSpaceUI/HpBar");
+        HpBar = obj.GetComponent<HpBarController>();
+        HpBar.SetHpTarget(gameObject.transform);
+        obj.SetActive(false);
+    }
+    
+    protected void UpdateHpBar()
+    {
+        if (MaxHp > Hp)
+        {
+            if (HpBar.gameObject.activeSelf == false) HpBar.gameObject.SetActive(true);
+        }
+        
+        HpBar.SetHpValue(MaxHp, Hp);
+    }
+
+    protected virtual void Update()
+    {
+        Die();
+    }
     protected virtual void Start() { }
 
-    protected virtual void OnMouseDown()
+    public virtual void Attacked(float attackDamage)
     {
-        if (m_EvtListener == null) return;
-        m_EvtListener(this, new CustomInputEvent(InputEventType.MouseDown, gameObject));
+        Hp = Mathf.Clamp(Hp - attackDamage, 0, MaxHp);
+        Debug.Log($"Attacked bat{transform.name}: {Hp}");
+        UpdateHpBar();
     }
-    
-    protected virtual void OnMouseDrag()
+
+    protected virtual void Die()
     {
-        if (m_EvtListener == null) return;
-        m_EvtListener(this, new CustomInputEvent(InputEventType.MouseDrag, gameObject));
-    }
-    
-    protected virtual void OnMouseUp()
-    {
-        if (m_EvtListener == null) return;
-        m_EvtListener(this, new CustomInputEvent(InputEventType.MouseUp, gameObject));
+        if (Hp <= 0)
+        {
+            gameObject.SetActive(false);
+        }
     }
 }

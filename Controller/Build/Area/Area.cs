@@ -23,6 +23,7 @@ public class Area : MonoBehaviour
     private List<AreaColorStack> m_ColorStack = new List<AreaColorStack>();
     Renderer m_Rend;
     public AreaType type = AreaType.Empty;
+    public int EmptyType { get; set; }
     // public AreaType prevType = AreaType.None;
 
     public void PushArea(AreaType t, int id)
@@ -64,13 +65,21 @@ public class Area : MonoBehaviour
         switch (t)
         {
             case AreaType.Empty :
-                result = Resources.Load("Materials/Grass") as Material;
+                if (EmptyType == 1)
+                {
+                    result = Resources.Load("Materials/Grass") as Material;    
+                }
+                else
+                {
+                    result = Resources.Load("Materials/GrassyRocks") as Material;
+                }
+                
                 break;
             case AreaType.NoSpawnArea :
-                result = Resources.Load("Materials/Area") as Material;
+                result = Resources.Load("Materials/NoSpawnArea") as Material;
                 break;
             case AreaType.Building :
-                result = Resources.Load("Materials/Dirt") as Material;
+                result = Resources.Load("Materials/BuildArea") as Material;
                 break;
             case AreaType.Collision :
                 result = Resources.Load("Materials/UnBuildable") as Material;

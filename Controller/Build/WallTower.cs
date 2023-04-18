@@ -5,4 +5,9 @@ public class WallTower : Build
     {
         base.Awake();
     }
+
+    protected override void Update()
+    {
+        base.Update();
+    }
 }

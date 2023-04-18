@@ -10,4 +10,9 @@ public class Initializer : MonoBehaviour
     {
         Init();
     }
+
+    protected virtual void Start()
+    {
+        
+    }
 }

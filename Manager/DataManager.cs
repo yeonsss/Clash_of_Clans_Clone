@@ -10,18 +10,23 @@ using static Define;
 
 // [Serializable] => 메모리에 있는 정보가 파일로 변환될 수 있다는 뜻으로 표시
 // class {} => 파일로 변환 가능한 클래스
-
+[Serializable]
+public class Session
+{
+    public string sessionID { get; set; }
+}
 
 #region Building Data Class
 
 [Serializable]
 public class Building
 {
-    public int SerialCode;
     public int XSize;
     public int YSize;
     public string Name;
     public int BuildCost;
+    public int BuildTime;
+    public string BuildType;
     public string Description;
     public float AttackCooldown;
     public List<level> Levels;
@@ -30,10 +35,8 @@ public class Building
 [Serializable]
 public class level {
     public int Level;
-    public int GainPoint;
-    public int CoolTime;
+    public int StorageCapacity;
     public float Hp;
-    public float MaxHp;
     public float Attack;
     public int UpgradeCost;
     public string PrefabPath;
@@ -53,13 +56,14 @@ public class BuildingData
 
 public class Monster
 {
-    public int SerialCode;
     public string Description;
     public float MoveSpeed;
     public float AttackRange;
-    public float DetectRange;
     public float AttackCooldown;
     public float SkillCooldown;
+    public int SummonCapacity;
+    public float SpawnTime;
+    public string Name;
     public List<MLevel> Levels;
 }
 
@@ -67,9 +71,7 @@ public class MLevel
 {
     public int Level;
     public float Hp;
-    public float MaxHp;
     public float Attack;
-    public float SpawnCost;
     public string PrefabPath;
 }
 
@@ -79,56 +81,23 @@ public class MonsterData
 }
 #endregion
 
-
-#region Card Data class
-
-public class Card
+public class RoundData
 {
-    public string Name;
-    public string Description;
-    public int Cost;
-    public int CardCode;
-    public int SerialCode;
-    public int Type;
+    public List<Round> Rounds = new List<Round>();
 }
 
-public class CardData
+public class Round
 {
-    public List<Card> Cards = new List<Card>();
+    public int round { get; set; }
+    public int Bat { get; set; }
+    public int Mage { get; set; }
 }
-
-#endregion
-
-
-#region Chapter Data class
-
-public class Chapter
-{
-    public int ChapterNum;
-    public int RoundNum;
-    public ChapterObject[] ChapterObjects;
-}
-
-public class ChaptersData
-{
-    public Chapter[] Chapters;
-}
-
-public class ChapterObject
-{
-    public int SerialCode;
-    public int Count;
-}
-
-#endregion
-
 
 public class DataManager : Singleton<DataManager>
 {
-    public Dictionary<int, Building> buildingDict { get; private set; } = new Dictionary<int, Building>();
-    public Dictionary<int, Monster> monsterDict { get; private set; } = new Dictionary<int, Monster>();
-    public Dictionary<int, Card> cardDict { get; private set; } = new Dictionary<int, Card>();
-    public Dictionary<string, Chapter> ChapterDict { get; private set; } = new Dictionary<string, Chapter>();
+    public Dictionary<BuildName, Building> buildingDict { get; private set; } = new ();
+    public Dictionary<MonsterName, Monster> monsterDict { get; private set; } = new ();
+    public Dictionary<int, Round> roundDict { get; private set; } = new ();
 
     public T DataInitialize<T>(string path)
     {
@@ -137,12 +106,30 @@ public class DataManager : Singleton<DataManager>
         return dataMapJson;
     }
 
+    public void SaveData<T>(string path, T data)
+    {
+        string jsonText = JsonUtility.ToJson(data);
+        System.IO.File.WriteAllText(path, jsonText);
+    }
+
+    public T GetData<T>(string path)
+    {
+        var data = DataInitialize<T>(path);
+        return data;
+    }
+
+    public Monster GetMonsterData(string monsterName)
+    {
+        if (Enum.TryParse<MonsterName>(monsterName, out var type) == false) return null;
+        return monsterDict[type];
+    }
+
     public void BuildingDataInit()
     {
         var jsonData = DataInitialize<BuildingData>("Data/Building");
         foreach (var data in jsonData.Buildings)
-        {   
-            buildingDict.Add(data.SerialCode, data);
+        {
+            buildingDict.Add((BuildName)Enum.Parse(typeof(BuildName), data.Name), data);
         }
     }
     
@@ -151,26 +138,16 @@ public class DataManager : Singleton<DataManager>
         var jsonData = DataInitialize<MonsterData>("Data/Monster");
         foreach (var data in jsonData.Monsters)
         {   
-            monsterDict.Add(data.SerialCode, data);
+            monsterDict.Add((MonsterName)Enum.Parse(typeof(MonsterName), data.Name), data);
         }
     }
     
-    public void CardDataInit()
+    public void RoundDataInit()
     {
-        var jsonData = DataInitialize<CardData>("Data/Card");
-        foreach (var data in jsonData.Cards)
+        var jsonData = DataInitialize<RoundData>("Data/Round");
+        foreach (var data in jsonData.Rounds)
         {   
-            cardDict.Add(data.CardCode, data);
-        }
-    }
-    
-    public void ChapterDataInit()
-    {
-        var jsonData = DataInitialize<ChaptersData>("Data/Chapters");
-        foreach (var data in jsonData.Chapters)
-        {
-            string key = $"{data.ChapterNum}-{data.RoundNum}";
-            ChapterDict.Add(key, data);
+            roundDict.Add(data.round, data);
         }
     }
 
@@ -178,8 +155,7 @@ public class DataManager : Singleton<DataManager>
     {
         BuildingDataInit();
         MonsterDataInit();
-        CardDataInit();
-        ChapterDataInit();
+        RoundDataInit();
     }
 }
 

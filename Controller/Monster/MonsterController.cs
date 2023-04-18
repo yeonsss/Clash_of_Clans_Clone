@@ -2,53 +2,78 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using static Define;
 
 public class MonsterController : BaseController
 {
     // BaseInfo
-    public int serialCode = 1;
+    public MonsterName type;
     protected AIComponent aiComponent;
     public bool aiActive = true;
     public int currentlevel = 0;
-
-    public float Hp { get; set; }
-    public float MaxHp { get; set; }
+    
     public float AttackPoint { get; set; }
     public float MoveSpeed { get; set; }
     public float AttackRange { get; set; }
     public float DetectRange { get; set; }
     public float AttackCooldown { get; set; }
     public float SkillCooldown { get; set; }
-
+    
     protected override void Start()
     {
-        DataManager.instance.monsterDict.TryGetValue(serialCode, out var info);
+        DataManager.instance.monsterDict.TryGetValue(type, out var info);
         if (info == null) return;
         AttackCooldown = info.AttackCooldown;
         Hp = info.Levels[currentlevel].Hp;
-        MaxHp = info.Levels[currentlevel].MaxHp;
+        MaxHp = info.Levels[currentlevel].Hp;
         AttackPoint = info.Levels[currentlevel].Attack;
         MoveSpeed = info.MoveSpeed;
         AttackRange = info.AttackRange;
-        DetectRange = info.DetectRange;
         SkillCooldown = info.SkillCooldown;
         SetTree();
+    }
+    
+    IEnumerator DisplayAndDelete()
+    {
+        var check = aiComponent.CheckData("displayTargetingImage");
+        if (!check)
+            yield break;
+
+        var bestObj = aiComponent.GetData("target") as GameObject;
+        if (bestObj == null) yield break;
+        
+        var targetPos = bestObj.transform.position;
+        var image =ResourceManager.instance.Instantiate("WorldSpaceUI/TargetingImage");
+        image.transform.position = new Vector3(targetPos.x + 0.5f, targetPos.y + 0.5f, targetPos.z + 0.5f);
+        aiComponent.ClearData("displayTargetingImage");
+        yield return new WaitForSeconds(2.0f);
+        Destroy(image);
     }
 
     protected override void Update()
     {
         if (aiComponent != null && aiActive == true) aiComponent.Generate();
-        Die();
+        StartCoroutine(DisplayAndDelete());
+        base.Update();
     }
 
-    protected virtual void SetTree() { }
-    public virtual void Attack() { }
-    public virtual void Attacked(float attackDamage) { }
-
-    public virtual void Die()
+    protected virtual void SetTree()
     {
+        aiComponent = new AIComponent(this);
+        aiComponent.SetData("displayTargetingImage", 1);
     }
-    public virtual void Move() { }
-    public virtual void Skill() { }
+
+    public override void Attacked(float attackDamage)
+    {
+        base.Attacked(attackDamage);
+    }
+
+    protected override void Die()
+    {
+        base.Die();
+    }
     
+    protected virtual void Attack() { }
+    protected virtual void Move() { }
+    protected virtual void Skill() { }
 }

@@ -11,6 +11,24 @@ public class Define
     public const float X_MIN = -1 * (int)(WIDTH / 2);
     public const float X_MAX = (int)(WIDTH / 2);
     
+    public enum Method
+    {
+        GET,
+        POST,
+        PUT,
+        DELETE,
+    }
+    
+    public enum UIEvent
+    {
+        Click,
+        Pressed,
+        PointerDown,
+        PointerUp,
+    }
+    
+    public const string SERVER_URI = "http://192.168.219.107:9999";
+
     public enum AreaType
     {
         Empty = 0,
@@ -26,30 +44,48 @@ public class Define
         Gold,
         // Credit,
         // Elixir,
+        // None
+    }
+    
+    public enum BuildName
+    {
+        GoldMine = 1,
+        DefenceTower = 2,
+        Hall = 3,
+        Wall = 4,
         None
     }
     
     public enum BuildType
-    {
-        Wall,
-        NonWall,
-        None
+    {   
+        Defence,
+        Utility,
+        Resource
     }
-    
-    public enum CardType
+
+    public enum MonsterName
     {
-        BuildCard,
-        MagicCard,
-        MonsterCard
+        Bat,
+        Mage,
+        Skeleton,
+        BlackKnight,
+        Werewolf,
     }
-    
+
     public enum UI
     {
-        HANDUI,
+        SHOPUI,
         GAMEUI,
-        DECKUI,
+        RADEUI,
         BATTLEUI,
         None
+    }
+    
+    public enum SocketEvent
+    {
+        GET_TASK_START,
+        GET_TASK_COMPLETE,
+        GET_BUILD_STORAGE
     }
     
     public enum DataClassType
@@ -72,6 +108,8 @@ public class Define
         MouseUp,
         None
     }
+    
+    public delegate IEnumerator SocketEventHandler(IResponse response);
     
     public static bool Rtow(int x, int y, int max, out float wx, out float wy) {
         try
@@ -110,4 +148,13 @@ public class Define
         source[two] = temp;
     }
     
+    public static Vector3 GetMouseWorldPosition(float mZcoord)
+    {
+        Vector3 mousePos = Input.mousePosition;
+        mousePos.z = mZcoord;
+        return Camera.main.ScreenToWorldPoint(mousePos);
+    }
+    
+    public const int JobLimitCount = 80;
+    public const float ClickHoldTime = 1.0f;
 }

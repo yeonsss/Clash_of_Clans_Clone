@@ -7,68 +7,50 @@ public class BatController : MonsterController
 {
     protected override void SetTree()
     {
-        aiComponent = new AIComponent(this);
+        base.SetTree();
         var objTransform = transform;
 
-        aiComponent.Root = new Selector(new List<Node>
+        aiComponent.Root = new Sequence(new List<Node>
         {
-            new Sequence(new List<Node>
+            new SearchBuildIgnoreWall(objTransform, aiComponent),
+            
+            new Selector(new List<Node>
             {
-                new Selector(new List<Node>()
+                new Sequence(new List<Node>()
                 {
-                    // 유저의 몬스터 스폰 기능이 추가되면 주석 해제
-                    // new CheckEnemyInDetectRange(objTransform, aiComponent),
-                    new CheckEnemyBuild(objTransform, aiComponent),
+                    new CheckEnemyInAttackRange(objTransform, aiComponent),    
+                    new AttackTarget(objTransform, aiComponent, Attack),
                 }),
-                new TaskGoToTarget(objTransform, aiComponent)
-            }),
-            new Sequence(new List<Node>
-            {
-                new CheckEnemyInAttackRange(objTransform, aiComponent),
-                new TaskAttack(objTransform, aiComponent, Attack),
+                new Sequence(new List<Node>()
+                {
+                    new MoveToTarget(objTransform, aiComponent),
+                }), 
             }),
         });
     }
 
-    public override void Attack()
+    protected override void Attack()
     {
-        var target = aiComponent.GetData("target");
+        var target = aiComponent.GetData("target") as GameObject;
         if (target != null)
         {
-            var targetTransform = target as Transform;
-            if (targetTransform.CompareTag("Building"))
-            {
-                if (targetTransform != null)
-                    targetTransform.GetComponent<Build>().Attacked(AttackPoint);
-            }
+            if (target.CompareTag("Building"))
+                target.GetComponent<Build>().Attacked(AttackPoint);
             else
-            {
-                if (targetTransform != null)
-                    targetTransform.GetComponent<MonsterController>().Attacked(AttackPoint);
-            }
-
-
+                target.GetComponent<MonsterController>().Attacked(AttackPoint);
         }
     }
 
-    public override void Attacked(float attackDamage)
-    {
-        Hp = Mathf.Clamp(Hp - attackDamage, 0, MaxHp);
-        Debug.Log($"Attacked bat{transform.name}: {Hp}");
-    }
-
-    public override void Die()
-    {
-        if (Hp <= 0)
-        {
-            if (transform.CompareTag("Enemy"))
-            {
-                BattleManager.instance.MonsterCount--;
-            }
-
-            Destroy(gameObject);
-        }
-    }
-    public override void Move() { }
-    public override void Skill() { }
+    // public override void Attacked(float attackDamage)
+    // {
+    //     Hp = Mathf.Clamp(Hp - attackDamage, 0, MaxHp);
+    //     Debug.Log($"Attacked bat{transform.name}: {Hp}");
+    // }
+    //
+    // protected override void Die()
+    // {
+    //     base.Die();
+    // }
+    protected override void Move() { }
+    protected override void Skill() { }
 }

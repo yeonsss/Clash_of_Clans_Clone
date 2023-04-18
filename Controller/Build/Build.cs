@@ -1,15 +1,17 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 using static Define;
 using Object = UnityEngine.Object;
 
  public class Build : BaseController
 {
-    public int serialCode;
     public bool m_BuildActivete = false;
-    public BuildType bType = BuildType.None;
-    
+    public BuildName type = BuildName.None;
+    public string buildId;
+
     public bool buildActive
     {
         get { return m_BuildActivete; }
@@ -29,48 +31,39 @@ using Object = UnityEngine.Object;
             m_BuildActivete = value;
         }
     }
-    
+
     public bool m_CollisionCheck = false;
     public bool m_CooldownComplete = false;
     public bool m_BuildChoiceComplete = false;
     public bool justSpawn = false;
 
-    private int currentLevel = 0;
-    public float Hp { get; set; }
-    public float MaxHp { get; set; }
+
+    public int currentLevel = 0;
     public float Attack { get; set; }
     public float AttackCooldown { get; set; }
     public int XSize { get; set; }
     public int YSize { get; set; }
-    public float CoolTime { get; set; }
-    
+
 
     private float rangeY = -0.49f;
     private Vector3 prevPos;
     public int instanceId;
     public GameObject area;
     private List<Tuple<int, int, AreaType>> AreaList = new List<Tuple<int, int, AreaType>>();
-    
-    protected virtual void Awake()
-    {
-        base.Awake();
-    }
 
     protected override void Start()
     {
         base.Start();
         instanceId = GameManager.IssueId();
-        DataManager.instance.buildingDict.TryGetValue(serialCode, out var info);
-        bType = serialCode == 4 ? BuildType.Wall : BuildType.NonWall;
-        
+        DataManager.instance.buildingDict.TryGetValue(type, out var info);
+
         if (info == null) return;
         Attack = info.Levels[currentLevel].Attack;
         Hp = info.Levels[currentLevel].Hp;
-        MaxHp = info.Levels[currentLevel].MaxHp;
+        MaxHp = info.Levels[currentLevel].Hp;
         AttackCooldown = info.AttackCooldown;
         XSize = info.XSize;
         YSize = info.YSize;
-        CoolTime = info.Levels[currentLevel].CoolTime;
 
         if (justSpawn == false)
         {
@@ -88,6 +81,15 @@ using Object = UnityEngine.Object;
         }
     }
 
+    protected override void Update()
+    {
+        if (buildActive == false)
+        {
+            GetCollision();
+        }
+        base.Update();
+    }
+
     public void ClearArea(Vector3 pos)
     {
         if (XSize % 2 == 0 || YSize % 2 == 0)
@@ -102,7 +104,7 @@ using Object = UnityEngine.Object;
             
             Wtor(pos.x + tuple.Item1, pos.z + tuple.Item2, (int)WIDTH, out var rx, out var ry);
             
-            var ar = GameManager.GetArea(rx, ry);
+            var ar = SpawnManager.GetArea(rx, ry);
             if (ar == null) return;
 
             ar.PopArea(instanceId);
@@ -124,7 +126,7 @@ using Object = UnityEngine.Object;
             
             Wtor(pos.x + tuple.Item1, pos.z + tuple.Item2, (int)WIDTH, out var rx, out var ry);
             
-            var ar = GameManager.GetArea(rx, ry);
+            var ar = SpawnManager.GetArea(rx, ry);
             if (ar == null) return;
 
             ar.PushArea(tuple.Item3, instanceId);
@@ -146,10 +148,7 @@ using Object = UnityEngine.Object;
         m_CollisionCheck = false;
     }
 
-    protected override void SetComponent()
-    {
-        m_ComponentList.Add(new BuildInputComponent());
-    }
+    protected override void SetComponent() { }
 
     public void CulcArea()
     {
@@ -186,27 +185,17 @@ using Object = UnityEngine.Object;
                 }
             }        
         }
-        
+
         area.transform.parent = transform;
-        if (justSpawn == true)
+        
+        if (areaX % 2 != 0 && areaY % 2 != 0)
         {
-            area.transform.position = transform.position;
+            area.transform.localPosition = new Vector3(0, 0, 0);
         }
         else
         {
-            area.transform.position = new Vector3(0, 0, 0);    
+            area.transform.localPosition = new Vector3(0.5f, 0, 0.5f);
         }
-        
-        // if (areaX % 2 == 0 && areaY % 2 == 0)
-        // {
-        //     area.transform.position = new Vector3(0.5f, 0, 0.5f);
-        // }
-        // else
-        // {
-        //     
-        // }
-
-        
         area.SetActive(false);
     }
 
@@ -220,7 +209,7 @@ using Object = UnityEngine.Object;
 
             Wtor(areaPosX, areaPosY, (int)WIDTH, out var areaRPosX, out var areaRPosY);
 
-            if (GameManager.GetArea(areaRPosX, areaRPosY).type == AreaType.Building)
+            if (SpawnManager.GetArea(areaRPosX, areaRPosY).type == AreaType.Building)
             {
                 continue;
             }
@@ -257,60 +246,13 @@ using Object = UnityEngine.Object;
         }
     }
 
-    protected override void OnMouseDown()
-    {
-        // 건물을 클릭해서 자원을 흭득하지 않고 라운드 클리어 후 흭득하도록 변경 
-        // 그에 따른 해당 코드 주석 처리
-        // if (buildActive == true && m_CooldownComplete == true) UseSkill();
-        if (m_BuildChoiceComplete == true)
-        {
-            buildActive = false;
-        }
-        base.OnMouseDown();
-    }
-
-    protected override void OnMouseDrag()
-    {
-        if (prevPos != transform.position)
-        {
-            GetCollision();
-        }
-        base.OnMouseDrag();
-    }
-    
-    protected override void OnMouseUp()
-    {
-        if (m_CollisionCheck == false && m_BuildChoiceComplete)
-        {
-            if (buildActive == false) buildActive = true;
-            if (prevPos != transform.position)
-            {
-                prevPos = transform.position;    
-            }
-        }
-        base.OnMouseUp();
-    }
-
-    public void Attacked(float attackDamage)
-    {
-        Hp = Mathf.Clamp(Hp - attackDamage, 0, MaxHp);
-        Debug.Log($"Attacked bat{transform.name}: {Hp}");
-        Die();
-    }
-
-    protected void Die()
+    protected override void Die()
     {
         if (Hp <= 0)
         {
-            if (bType == BuildType.NonWall)
-            {
-                BattleManager.instance.DeleteBuildInArray(instanceId);
-            }
-            else if (bType == BuildType.Wall)
-            {
-                BattleManager.instance.DeleteWallInArray(instanceId);
-            }
-            Destroy(gameObject);
+            BattleManager.instance.DeletaBuildInBoard(gameObject);
+            gameObject.SetActive(false);
+            // Destroy(gameObject);
         }
     }
 
