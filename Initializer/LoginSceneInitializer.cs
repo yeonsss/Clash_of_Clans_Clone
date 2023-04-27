@@ -12,9 +12,5 @@ public class LoginSceneInitializer : Initializer
         {
             ResourceManager.instance.InstantiateDontDistroy("Main Camera");    
         }
-        
-        C_SceneManager.instance.Init();
-        NetworkManager.instance.Init();
-        SocketManager.instance.Init();
     }
 }

@@ -32,7 +32,7 @@ public class BattleManager : Singleton<BattleManager>
 
     private bool _battleDone = false;
 
-    public void Init()
+    public override void Init()
     {
         battleDoneEvent = new UnityEvent<string>();
         rivalChangeEvent = new UnityEvent<ResponseGetRivalDTO>();

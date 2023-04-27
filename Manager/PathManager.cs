@@ -43,7 +43,7 @@ public class PathManager : Singleton<PathManager>
     public List<PathVecter2Int> Root = new List<PathVecter2Int>();
     public List<GameObject> targetList = new List<GameObject>();
 
-    public void Init()
+    public override void Init()
     {
         Debug.Log("��ã�� �Ŵ��� ����");
     }

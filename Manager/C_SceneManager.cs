@@ -13,7 +13,7 @@ public class C_SceneManager : Singleton<C_SceneManager>
 
     private List<string> SceneList = new List<string>();
 
-    public void Init()
+    public override void Init()
     {
         GetSceneList();
     }

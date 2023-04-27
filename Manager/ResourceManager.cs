@@ -7,7 +7,7 @@ public class ResourceManager : Singleton<ResourceManager>
         return Resources.Load<T>(path);
     }
     
-    public void Init() {}
+    public override void Init() {}
 
     public GameObject Instantiate(string path, Transform parent = null)
     {

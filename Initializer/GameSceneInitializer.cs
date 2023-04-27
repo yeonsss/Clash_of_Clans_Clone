@@ -5,16 +5,8 @@ public class GameSceneInitializer : Initializer
 {
     public override async void Init()
     {
-        GameManager.instance.Init();
-
         if (GameManager.instance.isInit == false)
         {
-            DataManager.instance.Init();
-            BattleManager.instance.Init();
-            UIManager.instance.Init();
-            InputManager.instance.Init();
-            SpawnManager.instance.Init();
-            PathManager.instance.Init();
             SpawnManager.instance.SpawnBoard();
 
             var response = await NetworkManager.instance.Get<ResponseGetMyDataDTO>("/user");

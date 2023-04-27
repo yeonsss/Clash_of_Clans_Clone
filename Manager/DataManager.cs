@@ -151,7 +151,7 @@ public class DataManager : Singleton<DataManager>
         }
     }
 
-    public void Init()
+    public override void Init()
     {
         BuildingDataInit();
         MonsterDataInit();

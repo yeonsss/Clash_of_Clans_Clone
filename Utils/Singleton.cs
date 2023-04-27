@@ -1,4 +1,5 @@
 using System;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class Singleton<T> : MonoBehaviour where T : Component 
@@ -21,6 +22,13 @@ public class Singleton<T> : MonoBehaviour where T : Component
             }
             return _instance;
         }
+    }
+    
+    public virtual void Init() {}
+
+    private void Awake()
+    {
+        Init();
     }
 
     private void OnDestroy()

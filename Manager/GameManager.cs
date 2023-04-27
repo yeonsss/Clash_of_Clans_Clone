@@ -43,10 +43,6 @@ public class GameManager : Singleton<GameManager>
         ResourceDict.Add(resType, credit);
     }
 
-    public void Init()
-    {
-    }
-
     public void GainResource(ResourceType type, int value)
     {
         // TODO: 서버한테서 받기

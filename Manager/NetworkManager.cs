@@ -12,7 +12,7 @@ public class NetworkManager : Singleton<NetworkManager>
 {
     public string sid;
 
-    public void Init()
+    public override void Init()
     {
         UnityWebRequest.ClearCookieCache();
     }

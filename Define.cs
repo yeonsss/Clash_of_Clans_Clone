@@ -11,6 +11,28 @@ public class Define
     public const float X_MIN = -1 * (int)(WIDTH / 2);
     public const float X_MAX = (int)(WIDTH / 2);
     
+    public const float ZoomSpeed = 0.1f;
+    public const float MinZoom = 1.0f;
+    public const float MaxZoom = 10.0f;
+    public enum LoginState
+    {
+        Success,
+        Cancel,
+        Fail
+    }
+    
+    public enum CreateUserState
+    {
+        Success,
+        Cancel,
+        Fail
+    }
+    
+    public enum LogoutState
+    {
+        Success
+    }
+    
     public enum Method
     {
         GET,

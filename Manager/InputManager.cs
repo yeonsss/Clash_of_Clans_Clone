@@ -31,8 +31,11 @@ public class InputManager : Singleton<InputManager>
     private Transform touchObj;
 
     private bool _touchStart = false;
+    private float startDistance;
+    private Vector2 prevTouch0, prevTouch1;
+    private Camera _mainCam;
 
-    public void Init()
+    public override void Init()
     {
         inputEvent = new UnityEvent<float, float>();
         _began = new UnityEvent<Touch>();
@@ -40,6 +43,7 @@ public class InputManager : Singleton<InputManager>
         _moved = new UnityEvent<Touch>();
         _ended = new UnityEvent<Touch>();
         _canceled = new UnityEvent<Touch>();
+        _mainCam = Camera.main;
 
         mask = LayerMask.GetMask("Ground") 
                | LayerMask.GetMask("Object")
@@ -117,10 +121,7 @@ public class InputManager : Singleton<InputManager>
             }
 
             Vector3 pos = GetMouseWorldPosition(mZcoord) + _mousePosOffset;
-            
-            Debug.Log(_mousePosOffset);
-            Debug.Log(pos);
-            
+
             pos.y = 0;
             var xSize = touchObj.GetComponent<Build>().XSize;
             var ySize = touchObj.GetComponent<Build>().YSize;
@@ -306,19 +307,24 @@ public class InputManager : Singleton<InputManager>
         }
         
         // zoom
-        if (Input.touchCount >= 2)
+        if (Input.touchCount < 2) return;
+        Touch touch0 = Input.GetTouch(0);
+        Touch touch1 = Input.GetTouch(1);
+            
+        if (touch0.phase == TouchPhase.Began || touch1.phase == TouchPhase.Began)
         {
-            var pos1 = PlanePosition(Input.GetTouch(0).position);
-            var pos2 = PlanePosition(Input.GetTouch(1).position);
+            prevTouch0 = touch0.position;
+            prevTouch1 = touch1.position;
+            startDistance = Vector2.Distance(touch0.position, touch1.position);
+        }
+        else if (touch0.phase == TouchPhase.Moved || touch1.phase == TouchPhase.Moved)
+        {
+            float currentDistance = Vector2.Distance(touch0.position, touch1.position);
+            float zoomFactor = (startDistance - currentDistance) * ZoomSpeed * Time.deltaTime;
+            _mainCam.orthographicSize = Mathf.Clamp(_mainCam.orthographicSize + zoomFactor, MinZoom, MaxZoom);
 
-            var pos1b = PlanePosition(Input.GetTouch(0).position - Input.GetTouch(0).deltaPosition);
-            var pos2b = PlanePosition(Input.GetTouch(1).position - Input.GetTouch(1).deltaPosition);
-
-            var zoom = Vector3.Distance(pos1, pos2) / Vector3.Distance(pos1b, pos2b);
-
-            if (zoom == 0 || zoom > 10) return;
-
-            Camera.main.transform.position = Vector3.LerpUnclamped(pos1, Camera.main.transform.position, 1 / zoom);
+            prevTouch0 = touch0.position;
+            prevTouch1 = touch1.position;
         }
     }
     

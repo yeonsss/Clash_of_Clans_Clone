@@ -35,7 +35,7 @@ public class SpawnManager : Singleton<SpawnManager>
         }
     }
 
-    public void Init()
+    public override void Init()
     {
         board = ResourceManager.instance.InstantiateEmtObj("Board");
         // board.AddComponent<CameraController>();

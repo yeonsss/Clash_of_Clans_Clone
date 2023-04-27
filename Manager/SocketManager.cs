@@ -40,7 +40,7 @@ public class SocketManager : Singleton<SocketManager>
     private SocketIOUnity socket;
     private EventDictionary eventDict;
 
-    public void Init()
+    public override void Init()
     {
         socket = new SocketIOUnity(uri, new SocketIOOptions()
         {

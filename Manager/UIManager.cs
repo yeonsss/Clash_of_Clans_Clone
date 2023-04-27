@@ -10,7 +10,7 @@ public class UIManager : Singleton<UIManager>
 
     public bool isUiActive = false;
 
-    public void Init()
+    public override void Init()
     {
         foreach (var uiName in Enum.GetNames(typeof(UI)))
         {
