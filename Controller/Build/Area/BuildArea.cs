@@ -7,20 +7,18 @@ using static Define;
 
 public class BuildArea : MonoBehaviour
 {
-    
-    private Material m_BuildPossible;
-    private Material m_UnBuildPossible;
-
-    private MeshRenderer m_Render = null;
+    public Material m_BuildPossible;
+    public Material m_UnBuildPossible;
+    public MeshRenderer m_Render;
     public bool isCollision = false;
-    // public GameObject building;
-    
-    private void Awake()
+    private Collider[] _colliders;
+    private int _maxColliders = 3;
+
+    public void Awake()
     {
         m_Render = GetComponent<MeshRenderer>();
         m_BuildPossible = Resources.Load("Materials/Buildable") as Material;
         m_UnBuildPossible = Resources.Load("Materials/UnBuildable") as Material;
-        // building = transform.parent.parent.gameObject;
     }
 
     private void Update()
@@ -29,7 +27,7 @@ public class BuildArea : MonoBehaviour
         CollisionCheck();
     }
 
-    private void CollisionCheck()
+    public void CollisionCheck()
     {
         var myPos = transform.position;
         Wtor(myPos.x, myPos.z, (int)WIDTH, out var rx, out var ry);
@@ -46,6 +44,32 @@ public class BuildArea : MonoBehaviour
         {
             isCollision = false;
             m_Render.material = m_BuildPossible;
+        }
+    }
+    
+    public void EditModeInit()
+    {
+        _colliders = new Collider[_maxColliders];
+    }
+    
+    public void CollisionCheckForEditMode()
+    {
+        // 충돌 체크
+        // var boxSize = new Vector3(0.8f, 1, 0.8f);
+        var myPos = transform.position;
+        var layerMask = LayerMask.GetMask("DetectArea");
+        // 바닥 충돌은 제외
+
+        var size = Physics.OverlapSphereNonAlloc(myPos, 0.01f, _colliders, layerMask);
+        if (size == 1)
+        {
+            isCollision = false;
+            m_Render.material = m_BuildPossible;
+        }
+        else if (size > 1)
+        {
+            isCollision = true;
+            m_Render.material = m_UnBuildPossible;
         }
     }
 }
