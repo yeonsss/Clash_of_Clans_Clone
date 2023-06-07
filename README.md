@@ -1,6 +1,6 @@
 # 클래시 오브 클랜 모작
 
-### 상세보기
+### 상세보기 & 시연 영상
 https://boiling-cowl-09d.notion.site/8472bcb4300a4afbab4e984ece02c7c6?pvs=4
 
 <br/>
@@ -26,11 +26,6 @@ https://boiling-cowl-09d.notion.site/8472bcb4300a4afbab4e984ece02c7c6?pvs=4
 | --- | --- |
 |클라이언트| Unity, UGUI, Socket.IO |
 |서버| JavaScript, Node.js, Express.js, MongoDB, Socket.IO |
-
-<br/>
-
-### 시연 영상
-URL
 
 <br/>
 
